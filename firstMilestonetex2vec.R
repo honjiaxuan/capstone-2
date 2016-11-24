@@ -1,6 +1,6 @@
 library(text2vec)
 library(data.table)
-mytext <- readLines("/home/oscar/Documents/Capstone/en_US/en_US.twitter.txt")
+mytext <- readLines("/home/oscar/Documents/DSSCapstone/en_US/en_US.twitter.txt")
 ## Example of parallel mode
 # set to number of cores on your machine
 N_WORKERS = 4
@@ -9,7 +9,7 @@ splits = split_into(mytext, N_WORKERS)
 jobs = lapply(splits, itoken, tolower, word_tokenizer, chunks_number = 1)
 vectorizer = hash_vectorizer()
 dtm = create_dtm(jobs, vectorizer, type = 'dgTMatrix')
-
+saveRDS(dtm, "./dtm_twitter")
 ##########################################################################
 
 library(text2vec)
