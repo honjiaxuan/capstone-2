@@ -134,6 +134,10 @@ df3$cumperc <- cumsum(df3$perc)
 df1$ID <- c(1:nrow(df1))
 df2$ID <- c(1:nrow(df2))
 df3$ID <- c(1:nrow(df3))
+## Creating a col with the percentage from 1 (max percentage) to 0 (min percentage)
+df1$percTrans <- (df1$perc - min(df1$perc)) / (max(df1$perc) - min(df1$perc))
+df2$percTrans <- (df2$perc - min(df2$perc)) / (max(df2$perc) - min(df2$perc))
+df3$percTrans <- (df3$perc - min(df3$perc)) / (max(df3$perc) - min(df3$perc))
 ## Keeping in mind the issue about the size of the files, I'll keep just the tokens which
 ## represents the 0.8 out of the total of the cases
 s <- data.frame(name = c("df1", "df2", "df3"), inicialSize = c(object.size(df1), 
@@ -151,6 +155,8 @@ saveRDS(df1, "./wordspruned1")
 saveRDS(df2, "./wordspruned2")
 saveRDS(df3, "./wordspruned3")
 ##########################################################################################
+##########################################################################################
+##########################################################################################
 df1 <- readRDS("./wordspruned1")
 df2 <- readRDS("./wordspruned2")
 df3 <- readRDS("./wordspruned3")
@@ -160,34 +166,18 @@ df3 <- readRDS("./wordspruned3")
 library(ggplot2)
 g <- ggplot(data = df1, aes(x=ID, y=cumperc))
 g <- g + geom_point()
+g <- g + geom_point(data = df1, aes(x=ID, y=percTrans), colour="blue")
 g
-
-g <- ggplot(data = df1, aes(x=ID, y=perc))
-g <- g + geom_point()
-g
-
 
 g <- ggplot(data = df2, aes(x=ID, y=cumperc))
 g <- g + geom_point()
-g
-
-g <- ggplot(data = df2, aes(x=ID, y=perc))
-g <- g + geom_point()
+g <- g + geom_point(data = df2, aes(x=ID, y=percTrans), colour="blue")
 g
 
 g <- ggplot(data = df3, aes(x=ID, y=cumperc))
 g <- g + geom_point()
+g <- g + geom_point(data = df3, aes(x=ID, y=percTrans), colour="blue")
 g
-
-g <- ggplot(data = df3, aes(x=ID, y=perc))
-g <- g + geom_point()
-g
-## Prunning the number of tokens by frecuencies
-df1p <- df1[df1$cumperc<=0.8,]
-
-
-
-
 ## Plotting the cumulative percentage
 
 ###############################################################################

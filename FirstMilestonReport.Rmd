@@ -1,0 +1,288 @@
+---
+title: "Milestone-First"
+author: "Oscar Villa"
+date: "November 28, 2016"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction:
+The goal of this project is just to display that I've gotten used to working with the data and that I'm on track to create my own prediction algorithm.
+
+## The data sets:
+There are three data sets: the one from twitter, the one from blogs and the one from news. All they are text and each one it's so big that generates a big work load and accopies a lot of RAM. It's because of this that we'll t take jus samples from them.
+
+## Importing and sampling data sets:
+1. Loading libraries:
+First of all, load needed libraries and enabling multicore work. Really we'll need it.
+
+```{r loading_libraries, echo=TRUE, warning=FALSE, message=FALSE, cache=TRUE}
+## Loading packages
+require(quanteda)
+library(doMC)
+library(text2vec)
+## Enabling multicore
+registerDoMC(cores = 4)
+```
+
+2. Loading data:
+        Will load the data sets, but because of their size, keep just a random sample of 0.10 out of the original.
+
+```{r loading_data, cache=TRUE, warning=FALSE}
+twitter <- readLines("/home/oscar/Documents/DSSCapstone/en_US/en_US.twitter.txt")
+news <- readLines("/home/oscar/Documents/DSSCapstone/en_US/en_US.news.txt")
+blogs <- readLines("/home/oscar/Documents/DSSCapstone/en_US/en_US.blogs.txt")
+
+twitter <- twitter[sample(seq(1, length(twitter)), size = length(twitter) * 0.01)]
+news <- news[sample(seq(1, length(news)), size = length(news) * 0.01)]
+blogs <- blogs[sample(seq(1, length(blogs)), size = length(blogs) * 0.01)]
+
+head(twitter, 2)
+head(news, 2)
+head(blogs, 2)
+```
+
+3. For the aim of avoid memory issues we'll parallelize the work. So, first, split the samples in chunks:
+
+```{r splitting, cache=TRUE}
+twitter <- split_into(twitter, 100)
+news <- split_into(news, 100)
+blogs <- split_into(blogs, 100)
+```
+
+4. Will end to enable the multicore for run the quanteda's functions on parallel for each (with foreach) of the chunks
+
+4.1. First for onegrams: I know that this work could be done recursively with just one function which takes the ngram and the data set as arguments, but now it's not straightforward for me.
+
+```{r dfm, cache=TRUE, warning=FALSE}
+library(doMC)
+registerDoMC(cores = 4)
+library(foreach)
+library(doParallel)
+
+twitterdfm <- foreach(i=1:length(twitter), .combine = rbind, .packages = c("quanteda")) %dopar% {
+splitsn <- as.vector(twitter[[i]])
+dfm <- dfm(as.character(splitsn), verbose = FALSE, what = c("word"), removeNumbers = T,removePunct = T, removeSymbols = T, removeSeparators = T, removeTwitter = T, removeHyphens = T, removeURL = T)
+}
+
+newsdfm <- foreach(i=1:length(news), .combine = rbind, .packages = c("quanteda")) %dopar% {
+splitsn <- as.vector(news[[i]])
+dfm <- dfm(as.character(splitsn), verbose = FALSE, what = c("word"), removeNumbers = T, removePunct = T, removeSymbols = T, removeSeparators = T, removeTwitter = T, removeHyphens = T, removeURL = T)
+}
+blogsdfm <- foreach(i=1:length(blogs), .combine = rbind, .packages = c("quanteda")) %dopar% {
+splitsn <- as.vector(blogs[[i]])
+dfm <- dfm(as.character(splitsn), verbose = FALSE, what = c("word"), removeNumbers = T, removePunct = T, removeSymbols = T, removeSeparators = T, removeTwitter = T, removeHyphens = T, removeURL = T)
+}
+
+head(twitterdfm)
+head(newsdfm)
+head(blogsdfm)
+
+alldfm <- rbind(twitterdfm, newsdfm, blogsdfm)
+head(alldfm)
+```
+
+4.2. Now the bigrams:
+
+```{r bigram, cache=TRUE, warning=FALSE}
+library(doMC)
+registerDoMC(cores = 4)
+library(foreach)
+library(doParallel)
+
+twitterdfmbi <- foreach(i=1:length(twitter), .combine = rbind, .packages = c("quanteda")) %dopar% {
+splitsn <- as.vector(twitter[[i]])
+ng <- dfm(tokenize(splitsn, ngrams = 2 , verbose = FALSE, removeNumbers = T, removePunct = T, removeSymbols = T, removeSeparators = T, removeTwitter = T, removeHyphens = T, removeURL = T, simplify = F))
+}
+
+newsdfmbi <- foreach(i=1:length(news), .combine = rbind, .packages = c("quanteda")) %dopar% {
+splitsn <- as.vector(news[[i]])
+ng <- dfm(tokenize(splitsn, ngrams = 2 , verbose = FALSE, removeNumbers = T, removePunct = T, removeSymbols = T, removeSeparators = T, removeTwitter = T, removeHyphens = T, removeURL = T, simplify = F))
+}
+
+blogsdfmbi <- foreach(i=1:length(blogs), .combine = rbind, .packages = c("quanteda")) %dopar% {
+splitsn <- as.vector(blogs[[i]])
+ng <- dfm(tokenize(splitsn, ngrams = 2 , verbose = FALSE, removeNumbers = T, removePunct = T, removeSymbols = T, removeSeparators = T, removeTwitter = T, removeHyphens = T, removeURL = T, simplify = F))
+}
+
+head(twitterdfmbi)
+head(newsdfmbi)
+head(blogsdfmbi)
+
+alldfmbi <- rbind(twitterdfmbi, newsdfmbi, blogsdfmbi)
+head(alldfmbi)
+```
+
+4.3. And trigrams:
+
+```{r trigram, cache=TRUE, warning=FALSE}
+library(doMC)
+registerDoMC(cores = 4)
+library(foreach)
+library(doParallel)
+
+twitterdfmtri <- foreach(i=1:length(twitter), .combine = rbind, .packages = c("quanteda")) %dopar% {
+splitsn <- as.vector(twitter[[i]])
+ng <- dfm(tokenize(splitsn, ngrams = 3 , verbose = FALSE, removeNumbers = T, removePunct = T, removeSymbols = T, removeSeparators = T, removeTwitter = T, removeHyphens = T, removeURL = T, simplify = F))
+}
+
+newsdfmtri <- foreach(i=1:length(news), .combine = rbind, .packages = c("quanteda")) %dopar% {
+splitsn <- as.vector(news[[i]])
+ng <- dfm(tokenize(splitsn, ngrams = 3 , verbose = FALSE, removeNumbers = T, removePunct = T, removeSymbols = T, removeSeparators = T, removeTwitter = T, removeHyphens = T, removeURL = T, simplify = F))
+}
+
+blogsdfmtri <- foreach(i=1:length(blogs), .combine = rbind, .packages = c("quanteda")) %dopar% {
+splitsn <- as.vector(blogs[[i]])
+ng <- dfm(tokenize(splitsn, ngrams = 3 , verbose = FALSE, removeNumbers = T, removePunct = T, removeSymbols = T, removeSeparators = T, removeTwitter = T, removeHyphens = T, removeURL = T, simplify = F))
+}
+
+head(twitterdfmtri)
+head(newsdfmtri)
+head(blogsdfmtri)
+
+alldfmtri <- rbind(twitterdfmtri, newsdfmtri, blogsdfmtri)
+head(alldfmtri)
+```
+
+## Exploratory data analysis and reduction of the sample:
+
+Of all of those Document-Feature Matrix (dfm), we are interested just in the frecuencies with which each of the ngrams (onegram, bigram or trigram) appears. So lets keep just this feature:
+
+1. Transforming the data sets: Let's go give them the structure of a data frame:
+
+```{r colsums, cache=TRUE}
+## Getting the feature
+onegram <- colSums(alldfm)
+bigram <- colSums(alldfmbi)
+trigram <- colSums(alldfmtri)
+## converting in to data frame
+onegram <- as.data.frame(onegram)
+bigram <- as.data.frame(bigram)
+trigram <- as.data.frame(trigram)
+## working around with row names
+onegram$token <- rownames(onegram)
+bigram$token <- rownames(bigram)
+trigram$token <- rownames(trigram)
+## Fixing col names
+names(onegram) <- c("n", "token")
+names(bigram) <- c("n", "token")
+names(trigram) <- c("n", "token")
+## Erasing rownames
+rownames(onegram) <- NULL
+rownames(bigram) <- NULL
+rownames(trigram) <- NULL
+## Showing
+head(onegram)
+head(bigram)
+head(trigram)
+```
+2. Featuring creation: We need some features as criteria to select the part of the sample that we'll be keeped.
+
+```{r features, cache=TRUE}
+## Creatin percentage
+onegram$perc <- onegram$n/sum(onegram$n)
+bigram$perc <- bigram$n/sum(bigram$n)
+trigram$perc <- trigram$n/sum(trigram$n)
+## Sorting
+onegram <- onegram[order(-onegram$perc),]
+bigram <- bigram[order(-bigram$perc),]
+trigram <- trigram[order(-trigram$perc),]
+## Getting cumulative percentages
+onegram$cumperc <- cumsum(onegram$perc)
+bigram$cumperc <- cumsum(bigram$perc)
+trigram$cumperc <- cumsum(trigram$perc)
+## Agregating a ID for plots
+onegram$ID <- c(1:nrow(onegram))
+bigram$ID <- c(1:nrow(bigram))
+trigram$ID <- c(1:nrow(trigram))
+head(onegram)
+head(bigram)
+head(trigram)
+```
+
+3. Exploratory data: Let's explore the data composition by plotting the cumulative percentage and the individual percentages of each of the tokens:
+
+```{r plot, cache=TRUE}
+library(ggplot2)
+g <- ggplot(data = onegram, aes(x=ID, y=cumperc))
+g <- g + geom_point()
+g <- g + geom_point(data = onegram, aes(x=ID, y=perc), colour="blue")
+g
+
+library(ggplot2)
+g <- ggplot(data = bigram, aes(x=ID, y=cumperc))
+g <- g + geom_point()
+g <- g + geom_point(data = bigram, aes(x=ID, y=perc), colour="blue")
+g
+
+library(ggplot2)
+g <- ggplot(data = trigram, aes(x=ID, y=cumperc))
+g <- g + geom_point()
+g <- g + geom_point(data = trigram, aes(x=ID, y=perc), colour="blue")
+g
+```
+
+4. Reducing the sample: We can see that if you sort the tokens by percentage covered of the total of tokens, it's not necessary all of the tokens to cover a cumulative percentage of 0.75 out of the words that can be reached. So, with the aiming in mind of to speed up the final model, we can keep just those tokens that cover the 0.75 of the cumulative percentage of the words used by humans (according to the sample)
+ 
+```{r reducing_dfm, cache=TRUE}
+lo1 <- nrow(onegram)
+onegram <- onegram[onegram$cumperc <= 0.75, ]
+lo2 <- nrow(onegram)
+
+lb1 <- nrow(bigram)
+bigram <- bigram[bigram$cumperc <= 0.75, ]
+lb2 <- nrow(bigram)
+
+lt1 <- nrow(trigram)
+trigram <- trigram[trigram$cumperc <= 0.75, ]
+lt2 <- nrow(trigram)
+
+data.frame(ini = c(lo1, lb1, lt1), fin = c(lo2, lb2, lt2), 
+           dif = c(lo2 - lo1, lb2 - lb1, lt2 - lt1), 
+           redperc = c((lo2 - lo1) / lo1, (lb2 - lb1) / lb1, (lt2 - lt1) / lt1))
+```
+
+This could be a reasonable collection of tokens to build up a model.
+
+## The model
+About the model, may be I'm over simplificating, but taking in account the need of eficiency, the size of the files and the enviroment in which the app will run (Shiny), so far, my idea is this:
+
+1.  All the dfms will be rbinded (bind by rows with "rbind" function) with their respective percentage.
+
+```{r rbind, cache=TRUE}
+allgram <- rbind(onegram, bigram, trigram)
+head(allgram)
+tail(allgram)
+```
+
+2. The new dfm will be sorted by percentage (not cumulative percentage but percentage).
+
+```{r sorting, cache=TRUE}
+allgram <- allgram[sort(-allgram$perc), ]
+```
+
+3. The inputed text over which will be make the prediction or completion will be take as a string which have to be passed out to a function. Supouse inputations like "my", "I'm", "can be"
+
+
+4. Then, the all dfm data frame have to be filtered with the inputation as argument and return the first three matchs ordered by percentage:
+
+```{r filtering, cache=TRUE}
+newallgram <- allgram[grep("^my", allgram$token), ]
+head(newallgram, 3)
+newallgram$token[1:3]
+
+newallgram <- allgram[grep("^I'm", allgram$token), ]
+head(newallgram, 3)
+newallgram$token[1:3]
+## Spaces have to be files in regex with "_"
+newallgram <- allgram[grep("^can_be", allgram$token), ]
+head(newallgram, 3)
+newallgram$token[1:3]
+```
+
+I know still have a lot of work with regexs, pasting and replacing chunks of strings, but this is the line of work I'll be.
